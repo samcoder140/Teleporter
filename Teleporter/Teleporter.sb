@@ -1,0 +1,730 @@
+'**************************************************************************************************************
+'Teleporter
+' Game  mode,  Chess-challenge,  Airplane  mode
+'NOTE: *** 3 levels = 1 zone;  5 zones = 1 region;  7 regions (105 levels) = 1 game
+'                                                     35 chess challenges,   35 airplane mode screens,  35 (lightning bonus) epic battles?
+
+GameSetup()
+mode="HardSetToLevel1"
+'Sound.Play(Program.Directory+"/COFFEE.wav")
+While mode <> "exit"
+  start = Clock.ElapsedMilliseconds
+  If mode = "normal" Then
+    TimerUpdate()
+    GameSpritesUpdate()
+    ProcessInput()
+    'PlayerUpdate()
+    'CheckCollisions() 
+  Else
+    If mode="LevelCompleteSequence" Then
+      LevelCompleteSequence() 
+    ElseIf mode="HardSetToLevel1" Then
+      SetUpLevel1()
+      mode = "normal"
+    EndIf    
+ '   NonInputSequence() 
+  EndIf
+
+  DelayAndTimers()
+EndWhile
+Program.End()
+'**************************************************************************************************************
+
+
+Sub LevelCompleteSequence
+  'Enemies disappear
+  'Player spins around clockwise -- 3 times?
+  'Level spins around counterclockwise and shrinks into nothing (done from screenshot loaded as image)
+  'text: 'Level complete! '
+  'if 1st time completing, receive gift
+  '  text:   'Level [1] time: '
+  'time enlarges and changes color
+  'If all possible tasks completed, show 'thorough' bonus (and surround time with multi-colored stars)
+  'If 'supersonic' speed beat, show 'SUPERSONIC' bonus (and change color of time)
+  'If 'lightning' speed, show 'lightning bonus' (and change time to silver and gold shining, Tesla coil bolts surround)
+  'if BOTH supersonic speed and thorough, Efficiency master bonus (time and stars flashing; stars move around)
+  
+  'Fade out
+  'make sure all necessary shapes destroyed
+  
+  'mode = level 2 setup
+ 'mode = 'normal'    -back in action in level 2 
+EndSub
+
+
+
+Sub TimerUpdate
+  levelTimer=Clock.ElapsedMilliseconds-levelStartTime
+  If levelTimer>=360000  Then      '1 hour
+    TimeOut()
+  EndIf
+  hundredthsOfSecond=Math.Remainder(Math.Round(levelTimer/10),100)
+  seconds= Math.Remainder(Math.Floor(levelTimer/1000),60)
+  minutes=Math.Floor(levelTimer/60000)
+  UpdateTimerOnScreen()
+EndSub
+
+
+Sub UpdateTimerOnScreen
+  If IsTimerRunning="True" Then
+    GraphicsWindow.BrushColor=GraphicsWindow.BackgroundColor
+    GraphicsWindow.FillRectangle(100,100,150,15)
+    GraphicsWindow.BrushColor="Black"
+    GraphicsWindow.DrawText(110,100,minutes)
+    GraphicsWindow.DrawText(130,100,":")
+    GraphicsWindow.DrawText(140,100,seconds)
+    GraphicsWindow.DrawText(160,100,":")
+    GraphicsWindow.DrawText(170,100,hundredthsOfSecond)
+  Else
+    'Display final time in big digits or something
+  EndIf
+EndSub
+
+
+Sub TimeOut
+  Program.End()
+EndSub
+
+
+Sub GameSpritesUpdate
+  
+  'NEED TO AUTOMATE THIS FUNCTION AS MUCH AS POSSIBLE TO MAKE IT UNIVERSAL
+  For iter = 1 To numEnemies
+       
+    If isEnemyAlive[iter]="true" Then
+      'Program.Delay(200)
+      If enemyFrameCounter[1] = enemyFramesPerPosition[1] Then
+        'MoveEnemies    enemy moves up and down from 10,10 to 10,5 and back
+        
+        If enemyY[1]<=levelTop+(boxsize*5) Then
+          enemyDirection[1]=3    'down
+          
+        ElseIf enemyY[1]>=levelTop+(boxsize*10) Then
+          enemyDirection[1]=1   'up
+        EndIf
+        
+        
+        If enemyDirection[1]=1 Then   'up
+          enemyY[1]=enemyY[1]-enemyDistancePerMove[1]
+        ElseIf enemyDirection[1]=3 Then    'down
+          enemyY[1]=enemyY[1]+enemyDistancePerMove[1]
+        EndIf
+        Shapes.Move(Enemy[1],enemyX[1],enemyY[1])
+       ' Program.Delay(200)
+      EndIf 
+    EndIf
+  EndFor
+  
+  enemyFrameCounter[1]=enemyFrameCounter[1]+1
+  If enemyFrameCounter[1]>(enemyFramesPerPosition[1]) Then
+    enemyFrameCounter[1]=1
+  EndIf
+  
+EndSub
+
+
+
+Sub SetUpLevel1
+  levelTop=120
+  levelLeft=300
+  levelWidthInSquares=10
+  levelHeightInSquares=10
+  numEnemies=1
+  enemyStartDirection[1]=1    'up
+  enemyDirection[1]=enemyStartDirection[1]
+  enemyFramesPerPosition[1]=3
+  enemyFrameCounter[1]=1
+  enemyDistancePerMove[1]=5
+  isEnemyAlive[1]="true"
+  playerXArray=3
+  playerYArray=10
+  playerX=levelLeft+(boxSize*playerXArray)
+  playerY=leveltop+(boxSize*playerYArray)
+  enemyX[1]=levelLeft+(boxSize*10)
+  enemyY[1]=levelTop+(boxSize*10)
+  
+  LevelBorder()
+  PlaceLevelObjects()
+  InitializePlayer()
+  UpdateJumpLengthCounter()
+  
+  levelTimer=0
+  CountHundredthsOfSecond=0
+  levelStartTime = Clock.ElapsedMilliseconds
+  IsTimerRunning="True"
+EndSub
+
+
+Sub InitializePlayer
+  Shapes.Move(Player,playerX,playerY)
+  Shapes.ShowShape(Player)
+  playerDirection=1  'up
+  jumpLength=1
+  minJumpLength=1
+  maxJumpLength=3
+EndSub
+
+
+Sub LevelBorder
+  GraphicsWindow.BrushColor="Black"
+  GraphicsWindow.FillRectangle(levelLeft,levelTop,(boxSize*levelWidthInSquares)+(2*boxSize),boxSize)
+  GraphicsWindow.FillRectangle(levelLeft,levelTop+(boxSize*levelHeightInSquares)+(boxSize),(boxSize*levelWidthInSquares)+(2*boxSize),boxSize)
+  GraphicsWindow.FillRectangle(levelLeft,levelTop+boxSize,boxSize,levelHeightInSquares*boxSize)
+  GraphicsWindow.FillRectangle(levelLeft+(boxSize*levelWidthInSquares)+(boxSize),levelTop+boxSize,boxSize,levelHeightInSquares*boxSize)
+EndSub
+
+
+
+Sub PlaceLevelObjects
+  For y=1 To levelHeightInSquares
+    For x=1 to levelWidthInSquares
+      currentObject=levelArray[y][x]
+      If currentObject<>0 Then 
+        
+        DrawLevelShapes()
+       
+      EndIf
+    EndFor
+  EndFor 
+  shapes.Move(Enemy[1],enemyX[1],enemyY[1])
+  Shapes.ShowShape(Enemy[1])
+EndSub
+
+Sub DrawLevelShapes
+  SetCorrectColor()
+  GraphicsWindow.FillEllipse(levelLeft+(boxSize*x),levelTop+(boxSize*y),boxSize,boxSize)
+EndSub
+ 
+
+
+
+
+
+Sub ProcessInput
+  If mode = "normal" Then
+    
+    ProcessUpDownKeys()
+    PlaceMostRecentKeyPressInCurrOrNextPointer()
+
+    If keyFlagCurrent>0 Or keyFlagNext>0 Then
+      If playerMoveFrameCounter>6 Then
+        TransitionToNextKeyPress()
+      Else
+        CallProperKeyHandler()
+        playerMoveFrameCounter=playerMoveFrameCounter+1
+      EndIf  
+    EndIf     'if keyflagCurrent >0 or keyflagnext>0  .....
+  EndIf   'if mode = "normal"
+  If levelArray[playerYArray][playerXArray]=5 Then
+    IsTimerRunning="False"
+    LevelEndFlag="True"
+  EndIf
+EndSub
+
+
+Sub ProcessUpDownKeys
+    If UpDownFlag=1 Then  'up
+      keyUp()
+      UpDownFlag=0
+    ElseIf UpDownFlag=3 Then  'down
+      keyDown()
+      UpDownFlag=0
+    EndIf
+EndSub
+
+Sub PlaceMostRecentKeyPressInCurrOrNextPointer
+    If keyFlag>0 Then
+      If keyFlagCurrent=0 Then
+        keyFlagCurrent=keyFlag
+      Else
+        keyFlagNext=keyFlag
+      EndIf
+      keyFlag=0 
+    EndIf  
+EndSub
+
+Sub TransitionToNextKeyPress
+        keyFlagCurrent=keyFlagNext
+        keyFlagNext=0
+        isMoveHappening="False"
+        playerMoveFrameCounter=1
+        directionChanged=0
+EndSub
+
+Sub CallProperKeyHandler
+    If keyFlagCurrent=5 Then  'space
+          KeySpace()
+        ElseIf keyFlagCurrent=4 Then  'left
+          KeyLeft()
+        ElseIf keyFlagCurrent=2 Then  'right
+          KeyRight()
+        ElseIf keyFlagCurrent=6 Then
+          'quit game?
+        EndIf
+EndSub
+
+
+
+Sub KeyUp
+    If jumpLength < maxJumpLength Then
+      jumpLength=jumpLength + 1  
+      UpdateJumpLengthCounter()
+    EndIf 
+EndSub
+
+Sub KeyDown
+    If jumpLength > minJumpLength Then
+      jumpLength=jumpLength - 1  
+      UpdateJumpLengthCounter()
+    EndIf 
+EndSub
+
+
+Sub UpdateJumpLengthCounter
+  GraphicsWindow.BrushColor=GraphicsWindow.BackgroundColor
+  GraphicsWindow.FillRectangle(200,200,15,15)
+  GraphicsWindow.BrushColor="Black"
+  GraphicsWindow.DrawText(200,200, jumpLength)
+EndSub
+
+
+Sub KeyLeft
+  If directionChanged=0 Then
+    If playerDirection=1 Then
+      playerDirection=4
+    Else
+      playerDirection=playerDirection-1
+    EndIf
+    directionChanged=1
+  EndIf
+  '1 = 60 30 0       2= 150 120 90     3= 240 210 180     4=  330  300 270
+  If playerMoveFrameCounter=1 Then
+    Shapes.Rotate(Player,((playerDirection-1)*90)+30)
+  ElseIf playerMoveFrameCounter=3 Then
+    Shapes.Rotate(Player,((playerDirection-1)*90)+30)
+  ElseIf playerMoveFrameCounter=5 then
+    Shapes.Rotate(Player,(playerDirection-1)*90)
+  EndIf  
+EndSub
+
+Sub KeyRight
+  If directionChanged=0 Then
+    If playerDirection=4 Then
+      playerDirection=1
+    Else
+      playerDirection=playerDirection+1
+    EndIf
+    directionChanged=1
+  EndIf
+  '1 = -60 -30 0       2= 30 60 90     3= 120 150 180     4=  210   240 270
+  If playerMoveFrameCounter=1 Then
+    Shapes.Rotate(Player,((playerDirection-1)*90)-30)
+  ElseIf playerMoveFrameCounter=3 Then
+    Shapes.Rotate(Player,((playerDirection-1)*90)-30)
+  ElseIf playerMoveFrameCounter=5 then
+    Shapes.Rotate(Player,(playerDirection-1)*90)
+  EndIf
+EndSub
+
+
+Sub KeySpace
+  If playerMoveFrameCounter=1 Then
+    CheckIfValidMove()
+  ElseIf isMoveHappening="True" Then
+    If playerMoveFrameCounter=2 Then
+      MoveFrame2()
+    ElseIf playerMoveFrameCounter=3 Then
+      MoveFrame3()
+    ElseIf playerMoveFrameCounter=4 Then
+      MoveFrame4()
+    ElseIf playerMoveFrameCounter=5 Then
+      MoveFrame5()
+    ElseIf playerMoveFrameCounter=6 Then
+      MoveFrame6()
+    EndIf
+  EndIf     'playerMoveFrameCounter=1
+EndSub
+
+
+Sub MoveFrame2
+        playerCanBeHit="False"
+ '     Shapes.HideShape(Player)
+ '     Player=Player[2]    
+ '     Shapes.ShowShape(Player)
+EndSub
+
+Sub MoveFrame3
+   '     Shapes.HideShape(Player)
+ '     Player=Player[3] 
+ '      Shapes.ShowShape(Player)
+EndSub
+
+Sub MoveFrame4
+       playerXArray=targetXArray
+      playerX=levelLeft+(playerXArray*30) 
+      playerYArray=targetYArray
+      playerY=levelTop+(playerYArray*30) 
+      Shapes.Move(Player,playerX,playerY)
+EndSub
+
+Sub MoveFrame5
+   '     Shapes.HideShape(Player)
+ '     Player=Player[2] 
+ '      Shapes.ShowShape(Player)  
+EndSub
+
+Sub MoveFrame6
+ '     Shapes.HideShape(Player)
+ '     Player=Player[1] 
+ '     Shapes.ShowShape(Player[1])
+ If LevelEndFlag="True" Then
+   mode = "LevelEndSequence"
+ Else 
+   playerCanBeHit="True"
+ EndIf
+
+EndSub
+
+
+Sub CheckIfValidMove
+  playerXArray=(playerX-levelLeft)/boxsize
+    playerYArray=(playerY-leveltop)/boxsize
+    targetXArray = playerXArray        'reset values
+    targetYArray = playerYArray        'reset values
+    
+    If playerDirection=1 Then  'up
+      CheckMoveUp()
+    ElseIf playerDirection=2 Then 'right
+      CheckMoveRight()
+    ElseIf playerDirection=3 Then  'down
+      CheckMoveDown()       
+    ElseIf playerDirection=4 Then 'left
+       CheckMoveLeft()
+    Else
+    EndIf   'playerDirection
+EndSub
+
+
+Sub CheckMoveLeft
+  validMove="True"
+  targetXArray = playerXArray-jumpLength
+  targetType = levelArray[targetYArray][targetXArray]
+  
+  If targetXArray < 1 Then     'in bounds
+    isMoveHappening="False"
+  Else
+    CheckSpacesInPathLeft()
+  EndIf
+  
+  If isMoveHappening="True" Then
+    playerXArray=playerXArray-jumpLength
+    playerX=levelleft+(playerXArray*boxsize)
+  EndIf
+EndSub
+
+
+Sub CheckSpacesInPathLeft
+  For spaceOnPath=1 To jumpLength
+    spaceOnPathXArray = playerXArray-spaceOnPath
+    spaceOnPathType = levelArray[targetYArray][spaceOnPathXArray]
+    If   SpaceOnPathType <> 2 Then     'wall
+      isMoveHappening="True"
+    Else
+      validMove="False"
+    EndIf
+  EndFor
+  If validMove="False" Then
+    isMoveHappening="False"
+  EndIf
+EndSub
+
+
+Sub CheckMoveRight
+  validMove="True"
+  targetXArray = playerXArray+jumpLength
+  targetType = levelArray[targetYArray][targetXArray]
+  
+  If targetXArray > 10 Then     'in bounds
+    isMoveHappening="False"
+  Else
+    CheckSpacesInPathRight()
+  EndIf
+  
+  If isMoveHappening="True" Then
+    playerXArray=playerXArray+jumpLength
+    playerX=levelleft+(playerXArray*boxsize)
+  EndIf
+EndSub
+
+
+Sub CheckSpacesInPathRight
+  For spaceOnPath=1 To jumpLength
+    spaceOnPathXArray = playerXArray+spaceOnPath
+    spaceOnPathType = levelArray[targetYArray][spaceOnPathXArray]
+    If   SpaceOnPathType <> 2 Then     'wall
+      isMoveHappening="True"
+    Else
+      validMove="False"
+    EndIf
+  EndFor
+  If validMove="False" Then
+    isMoveHappening="False"
+  EndIf
+EndSub
+
+
+'Sub CheckMoveRight
+'    targetXArray = playerXArray+jumpLength
+'      targetType = levelArray[targetYArray][targetXArray]
+'      If targetXArray < 11 And targetType <> 2 Then     'wall
+'        isMoveHappening="True"
+'        playerXArray=playerXArray+jumpLength
+'        playerX=levelleft+(playerXArray*boxsize)
+'      EndIf
+'EndSub
+
+
+
+Sub CheckMoveDown
+         targetYArray = playerYArray+jumpLength
+      targetType = levelArray[targetYArray][targetXArray]
+      If targetYArray < 11 And targetType <> 2 Then     'wall
+        isMoveHappening="True"
+        playerYArray=playerYArray+jumpLength
+        playerY=levelTop+(playerYArray*boxsize)
+      EndIf
+    EndSub
+
+
+Sub CheckMoveUp
+     targetYArray = playerYArray-jumpLength
+      targetType = levelArray[targetYArray][targetXArray]
+      If targetYArray > 0 And targetType <> 2 Then     'wall
+        isMoveHappening="True"
+        playerYArray=playerYArray-jumpLength
+        playerY=levelTop+(playerYArray*boxsize)
+      EndIf
+    EndSub
+    
+
+
+
+Sub SetCorrectColor     'REPLACE THIS WITH DrawCorrectObject
+  If currentObject=1 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,255)
+  ElseIf currentObject=2 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,0)
+  ElseIf currentObject=3 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(100,100,100)
+  ElseIf currentObject=4 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,255)
+  ElseIf currentObject=5 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,0)
+  ElseIf currentObject=6 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,0,0)
+  EndIf
+EndSub
+
+
+
+Sub GameSetup
+  'register events
+  GraphicsWindow.MouseDown=OnMouseDown
+  GraphicsWindow.MouseUp=OnMouseUp
+  GraphicsWindow.KeyDown=OnKeyDown
+  GraphicsWindow.KeyUp=OnKeyUp
+  
+  'Graphics Window
+  GraphicsWindow.Hide()
+  GraphicsWindow.BackgroundColor = "Green"
+  GraphicsWindow.Title = "Teleporter"
+  gw = 1000
+  gh = 680
+  gt = 0 'Math.Round((Desktop.Height/2)-((gh)/2))-35
+  gl = 0 'Math.Round((Desktop.Width/2)-((gw)/2))
+  GraphicsWindow.PenWidth=1
+  GraphicsWindow.Width = Desktop.Width-15
+  GraphicsWindow.Height = Desktop.Height-80
+  GraphicsWindow.Top = gt
+  GraphicsWindow.Left = gl
+  GraphicsWindow.Show()
+  GraphicsWindow.CanResize="False"
+  inputIgnored="False"
+  keyFlag=0
+  keyFlagCurrent=0
+  keyFlagNext=0
+  UpDownFlag=0
+  mouseLeftFlag=0
+  mouseRightFlag=0
+  keyDown="False"
+  keyLeft="False"
+  keyRight="False"
+  keyUp="False"
+  keyq="False"
+  keySpace="False"
+  mouseLeft="False"
+  mouseRight="False"
+  playerCanBeHit="True"
+  playerMoveFrameCounter=1
+  isMoveHappening="False"
+  directionChanged=0
+  levelTimer=0
+  levelStartTime=0
+  hundredthsOfSecond=0
+  seconds=0
+  minutes=0
+  IsTimerRunning="False"
+  LevelEndFlag="False"
+
+  mode = "normal"
+  frameRate = 50
+  frameTime = 1000/frameRate  '20ms in this case
+ 
+  'For y = 1 To 10
+  '  For x = 1 To 10 
+  '    levelArray[x][y]=0
+  ' EndFor
+  'EndFor
+  
+  boxSize=30
+  '1=player, 2=wall, 3=spike, 4=start point, 5=end point, 6=enemy1 (back and forth path)
+  numAvailObjects=6
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,0)
+  Object[2]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[2]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[2])
+  Shapes.HideShape(Cursor[2])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(100,100,100)
+  Object[3]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[3]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[3])
+  Shapes.HideShape(Cursor[3])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,255)
+  Object[4]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[4]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[4])
+  Shapes.HideShape(Cursor[4])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,0)
+  Object[5]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[5]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[5])
+  Shapes.HideShape(Cursor[5])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,0,0)
+  Object[6]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[6]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[6])
+  Shapes.HideShape(Cursor[6])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,255)
+  Object[1]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[1]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[1])
+  Shapes.HideShape(Cursor[1])
+  
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,0,255)
+  PlayerImage[1]=ImageList.LoadImage(Program.Directory+"/Player.png")
+  Player[1]=Shapes.AddImage(PlayerImage[1])
+  Shapes.HideShape(Player[1])
+  'PlayerImage[2]=ImageList.LoadImage(Program.Directory+"/Player2.png")
+  'Player[2]=Shapes.AddImage(PlayerImage[2])
+  'Shapes.HideShape(Player[2])
+  'PlayerImage[3]=ImageList.LoadImage(Program.Directory+"/Player3.png")
+  'Player[3]=Shapes.AddImage(PlayerImage[3])
+  'Shapes.HideShape(Player[3]) 
+ 
+  Player=Player[1]
+  
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,0,0)
+  Enemy[1]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Enemy[1])
+
+  'LEVEL ARRAY FOR LEVEL 1
+  levelArray[1]="1=2;2=2;3=0;4=2;5=0;6=0;7=0;8=2;9=2;10=2"
+  levelArray[2]="1=2;2=2;3=0;4=2;5=0;6=0;7=0;8=2;9=2;10=2"
+  levelArray[3]="1=0;2=2;3=0;4=2;5=3;6=3;7=3;8=2;9=2;10=2"
+  levelArray[4]="1=0;2=0;3=0;4=2;5=3;6=3;7=3;8=2;9=2;10=2"
+  levelArray[5]="1=0;2=2;3=0;4=2;5=0;6=0;7=0;8=0;9=2;10=5"
+  levelArray[6]="1=0;2=2;3=0;4=0;5=0;6=0;7=0;8=2;9=2;10=0"
+  levelArray[7]="1=2;2=2;3=0;4=2;5=0;6=0;7=0;8=2;9=0;10=0"
+  levelArray[8]="1=2;2=2;3=0;4=2;5=3;6=3;7=0;8=2;9=0;10=0"
+  levelArray[9]="1=2;2=2;3=0;4=2;5=0;6=0;7=0;8=0;9=0;10=0"
+  levelArray[10]="1=2;2=2;3=4;4=2;5=0;6=0;7=0;8=0;9=0;10=0"
+  
+EndSub
+
+  
+Sub DelayAndTimers
+  delay = frameTime - (Clock.ElapsedMilliseconds - start)
+  If delay > 0 Then
+    Program.Delay(delay)
+  EndIf
+EndSub
+
+
+'Handle Inputs
+Sub OnKeyDown
+  
+    If GraphicsWindow.LastKey = "Up" And keyUp = "False" Then
+      keyUp = "True"
+      UpDownFlag=1 'up    
+    ElseIf GraphicsWindow.LastKey = "Down" And keyDown = "False" Then
+      keyDown = "True"
+      UpDownFlag=3 'down
+    EndIf
+    
+    If GraphicsWindow.LastKey = "Left" And keyLeft = "False" Then
+      keyLeft = "True"
+      keyFlag=4  'left
+    ElseIf GraphicsWindow.LastKey = "Right" And keyRight = "False" Then
+      keyRight = "True"
+      keyFlag=2  'right
+    EndIf
+    If GraphicsWindow.LastKey = "Space" And keySpace = "False" Then
+      keySpace = "True"
+      keyFlag=5  'Space
+    EndIf
+    If GraphicsWindow.LastKey = "Q" And keyQ = "False" Then
+      keyQ = "True"
+      keyFlag=6    'Q
+    EndIf
+    
+EndSub
+
+Sub OnKeyUp
+  If GraphicsWindow.LastKey = "Up" Then
+    keyUp = "False"
+  ElseIf GraphicsWindow.LastKey = "Down" Then
+    keyDown = "False"
+  ElseIf GraphicsWindow.LastKey = "Left" Then
+    keyLeft = "False"
+  ElseIf GraphicsWindow.LastKey = "Right" Then
+    keyRight = "False"
+  ElseIf GraphicsWindow.LastKey = "Space" Then
+    keySpace = "False"
+  ElseIf GraphicsWindow.LastKey = "Q" Then
+    keyQ = "False"
+  EndIf
+EndSub
+
+Sub OnMouseDown
+  If mode="LevelBuilder" Then
+    If Mouse.IsLeftButtonDown = "True" Then
+      Sound.PlayClick()
+      mouseLeft="True"
+      mouseLeftFlag=1
+    EndIf
+    If Mouse.IsRightButtonDown = "True" Then
+      Sound.PlayChime()
+      mouseRight="True"
+      mouseRightFlag=1
+    EndIf
+  EndIf
+EndSub
+
+Sub OnMouseUp
+  If Mouse.IsLeftButtonDown="False" Then
+    mouseLeft="False"
+  EndIf
+  If Mouse.IsRightButtonDown="False" Then
+    mouseRight="False"
+  EndIf
+EndSub

@@ -1,0 +1,334 @@
+
+GameSetup()
+
+For x=1 To 10
+  For y=1 To 10
+    levelArray[y][x]="*"
+  EndFor
+EndFor
+  
+mode = "LevelBuilder"
+While mode <> "exit"
+  LevelBuilder()
+EndWhile
+Program.End()
+
+
+
+Sub LevelBuilder
+  LevelBuilderSetup()
+  DisplayAvailableLevelObjects()
+  While mode="LevelBuilder"
+    LevelBuilderProcess()
+  EndWhile
+EndSub
+
+
+Sub WriteToFile
+  File.DeleteFile(Program.Directory+"\LevelX.txt") 
+  For y=1 To levelHeightInSquares
+    For x=1 to levelWidthInSquares
+      File.AppendContents(Program.Directory+"\LevelX.txt",levelArray[x][y]) 
+    EndFor
+  EndFor
+  iter=1
+  For y=1 To levelHeightInSquares
+    For x=1 to levelWidthInSquares  
+      levelArray[x][y]=File.ReadLine(Program.Directory+"\LevelX.txt",iter)
+      TextWindow.Write(levelArray[x][y])
+      TextWindow.Write(" ")
+      iter=iter+1
+    EndFor
+    TextWindow.WriteLine(" ")
+  EndFor
+EndSub
+
+
+Sub LevelBuilderProcess
+  If qFlag=1 Then
+    WriteToFile()
+    qFlag=0
+  EndIf
+  ProcessMouseInput()  
+  UpdateCursorPosition()
+EndSub
+
+
+Sub ProcessMouseInput
+  If mouseLeftFlag=1 And mouseRightFlag=1 Then
+    mouseRightFlag=0
+  EndIf
+  If mouseLeftFlag=1 Or mouseRightFlag=1 Then
+    UpdateCurrentObject()
+    If GraphicsWindow.MouseX>=leftMouseParameter And GraphicsWindow.MouseX<rightMouseParameter Then
+      If GraphicsWindow.MouseY>=topMouseParameter And GraphicsWindow.MouseY<bottomMouseParameter Then
+        PlaceCurrentObject()
+        UpdateLevelArray()
+      EndIf
+    EndIf
+    If mouseLeftFlag=1 Then 
+      mouseLeftFlag=0        'ClearMouseLeftFlag
+    EndIf
+    If mouseRightFlag=1 Then
+      mouseRightFlag=0       'ClearMouseRightFlag
+    EndIf  
+  EndIf
+EndSub
+
+
+Sub UpdateCursorPosition
+    Shapes.ShowShape(Cursor[currentObject])
+    Shapes.Move(Cursor[currentObject],GraphicsWindow.MouseX,GraphicsWindow.MouseY)
+EndSub
+  
+
+Sub UpdateLevelArray
+  If mouseLeftFlag=1 Then
+    levelArray[1+((snapX-levelLeft)/boxSize)][(1+(snapY-levelTop)/boxSize)]=currentObject
+  ElseIf mouseRightFlag=1 Then
+    levelArray[1+((snapX-levelLeft)/boxSize)][(1+(snapY-levelTop)/boxSize)]=0
+  EndIf
+EndSub
+
+
+Sub SetCorrectColor     'REPLACE THIS WITH DrawCorrectObject
+  If currentObject=1 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,255)
+  ElseIf currentObject=2 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,0)
+  ElseIf currentObject=3 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(100,100,100)
+  ElseIf currentObject=4 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,255)
+  ElseIf currentObject=5 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,0)
+  ElseIf currentObject=6 Then
+    GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,0,0)
+  EndIf
+EndSub
+
+
+
+Sub LevelBuilderSnapTo
+  remainderX = Math.Remainder(GraphicsWindow.MouseX,boxSize)
+  remainderY = Math.Remainder(GraphicsWindow.MouseY,boxSize)
+  If remainderX <=(boxSize/2)-1 Then
+    snapX=(GraphicsWindow.MouseX-remainderX)
+  Else
+    snapX=((GraphicsWindow.MouseX+boxSize)-remainderX)  
+  EndIf
+  If remainderY <=(boxSize/2)-1 Then
+    snapY=(GraphicsWindow.MouseY-remainderY)
+  Else
+    snapY=((GraphicsWindow.MouseY+boxSize)-remainderY)  
+  EndIf
+EndSub
+      
+
+Sub PlaceCurrentObject
+  SetCorrectColor()           'REPLACE THIS WITH DrawCorrectObject
+  LevelBuilderSnapTo()
+  DrawCurrentObject()
+EndSub
+      
+Sub DrawCurrentObject
+If mouseLeftFlag=1 Then        
+  GraphicsWindow.DrawEllipse(snapX,snapY,boxSize,boxSize)
+  GraphicsWindow.FillEllipse(snapX,snapY,boxSize,boxSize)
+ElseIf mouseRightFlag=1 Then
+  GraphicsWindow.PenColor="Black"
+  GraphicsWindow.BrushColor="Green"
+  GraphicsWindow.FillRectangle(snapX,snapY,boxSize,boxSize)
+  GraphicsWindow.DrawRectangle(snapX,snapY,boxSize,boxSize)
+EndIf
+
+EndSub
+      
+
+Sub UpdateCurrentObject
+  For iter=1 To numAvailObjects
+    If GraphicsWindow.MouseX >= levelObjectLeft[iter]-(boxSize/2) And GraphicsWindow.MouseX <= levelObjectLeft[iter] +(boxSize/2) Then
+      If GraphicsWindow.MouseY >= levelObjectTop[iter]-(boxSize/2) And GraphicsWindow.MouseY <= levelObjectTop[iter] +(boxSize/2) Then
+        Shapes.HideShape(Cursor[currentObject])
+        currentObject=iter
+      EndIf
+    EndIf
+  EndFor
+EndSub    
+    
+
+Sub LevelBuilderSetup
+  'set  level  parameters
+  levelTop=120
+  levelLeft=300
+  levelWidthInSquares=10
+  levelHeightInSquares=10
+  leftMouseParameter=levelLeft-(boxSize/2)
+  rightMouseParameter=levelLeft+(levelWidthInSquares*boxSize)-(boxSize/2)
+  topMouseParameter=levelTop-(boxSize/2)
+  bottomMouseParameter=leveltop+(levelHeightInSquares*boxSize)-(boxSize/2)
+  currentObject=2               'wall
+  GraphicsWindow.PenColor="Black"
+  Mouse.HideCursor()
+  'Draw Grid
+  For x=levelLeft To levelLeft+((levelWidthInSquares-1)*boxSize) Step boxSize
+    For y=levelTop To levelTop+((levelHeightInSquares-1)*boxSize) Step boxSize
+      GraphicsWindow.DrawRectangle(x,y,boxSize,boxSize)
+    EndFor
+  EndFor  
+EndSub
+
+
+Sub DisplayAvailableLevelObjects
+  '1=player, 2=wall, 3=spike, 4=start point, 5=end point, 6=enemy1 (back and forth path)
+  objectMenuLeft=50
+  objectMenuTop=50
+  iter=1
+  For y=objectMenuTop To objectMenuTop+(4*boxsize) Step boxSize          '5x5  = 25 possible objects -- change code if  > 25
+    For x=objectMenuLeft To objectMenuLeft+(4*boxsize) Step boxSize
+      If iter<=numAvailObjects Then
+        Shapes.Move(Object[iter],x,y)
+        Shapes.ShowShape(Object[iter])
+        levelObjectLeft[iter]=x
+        levelObjectTop[iter]=y
+       ' GraphicsWindow.DrawRectangle(x,y,boxSize,boxSize)
+        iter=iter+1
+      EndIf  
+    EndFor
+  EndFor
+  
+EndSub
+
+Sub GameSetup
+  'register events
+  GraphicsWindow.MouseDown=OnMouseDown
+  GraphicsWindow.MouseUp=OnMouseUp
+  GraphicsWindow.KeyDown=OnKeyDown
+  GraphicsWindow.KeyUp=OnKeyUp
+  
+  'Graphics Window
+  GraphicsWindow.Hide()
+  GraphicsWindow.BackgroundColor = "Green"
+  GraphicsWindow.Title = "Teleporter"
+  gw = 1000
+  gh = 680
+  gt = 0 'Math.Round((Desktop.Height/2)-((gh)/2))-35
+  gl = 0 'Math.Round((Desktop.Width/2)-((gw)/2))
+  GraphicsWindow.PenWidth=1
+  GraphicsWindow.Width = Desktop.Width-15
+  GraphicsWindow.Height = Desktop.Height-80
+  GraphicsWindow.Top = gt
+  GraphicsWindow.Left = gl
+  GraphicsWindow.Show()
+  GraphicsWindow.CanResize="False"
+  'keyFlag=0
+  mouseLeftFlag=0
+  mouseRightFlag=0
+  keyDown="False"
+  keyLeft="False"
+  keyRight="False"
+  keyUp="False"
+  keyq="False"
+  keySpace="False"
+  mouseLeft="False"
+  mouseRight="False"
+
+  mode = "normal"
+  frameRate = 50
+  frameTime = 1000/frameRate  '20ms in this case
+
+  
+  boxSize=30
+  '1=player, 2=wall, 3=spike, 4=start point, 5=end point, 6=enemy1 (back and forth path)
+  numAvailObjects=6
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,0)
+  Object[2]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[2]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[2])
+  Shapes.HideShape(Cursor[2])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(100,100,100)
+  Object[3]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[3]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[3])
+  Shapes.HideShape(Cursor[3])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(0,0,255)
+  Object[4]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[4]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[4])
+  Shapes.HideShape(Cursor[4])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,0)
+  Object[5]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[5]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[5])
+  Shapes.HideShape(Cursor[5])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,0,0)
+  Object[6]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[6]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[6])
+  Shapes.HideShape(Cursor[6])
+  GraphicsWindow.BrushColor=GraphicsWindow.GetColorFromRGB(255,255,255)
+  Object[1]=Shapes.AddEllipse(boxSize,boxSize)
+  Cursor[1]=Shapes.AddEllipse(boxSize,boxSize)
+  Shapes.HideShape(Object[1])
+  Shapes.HideShape(Cursor[1])
+  
+EndSub
+
+'Handle Inputs
+Sub OnKeyDown
+    If GraphicsWindow.LastKey = "Up" And keyUp = "False" Then
+      keyUp = "True"
+    ElseIf GraphicsWindow.LastKey = "Down" And keyDown = "False" Then
+      keyDown = "True"
+    ElseIf GraphicsWindow.LastKey = "Left" And keyLeft = "False" Then
+      keyLeft = "True"
+    ElseIf GraphicsWindow.LastKey = "Right" And keyRight = "False" Then
+      keyRight = "True"
+    ElseIf GraphicsWindow.LastKey = "Space" And keySpace = "False" Then
+      keySpace = "True"
+    ElseIf GraphicsWindow.LastKey = "Q" And keyQ = "False" Then
+      keyQ = "True"
+      qFlag=1
+    Else
+    EndIf
+EndSub
+
+Sub OnKeyUp
+  If GraphicsWindow.LastKey = "Up" Then
+    keyUp = "False"
+  ElseIf GraphicsWindow.LastKey = "Down" Then
+    keyDown = "False"
+  ElseIf GraphicsWindow.LastKey = "Left" Then
+    keyLeft = "False"
+  ElseIf GraphicsWindow.LastKey = "Right" Then
+    keyRight = "False"
+  ElseIf GraphicsWindow.LastKey = "Space" Then
+    keySpace = "False"
+  ElseIf GraphicsWindow.LastKey = "Q" Then
+    keyQ = "False"
+  EndIf
+EndSub
+
+Sub OnMouseDown
+  If mode="LevelBuilder" Then
+    If Mouse.IsLeftButtonDown = "True" Then
+      Sound.PlayClick()
+      mouseLeft="True"
+      mouseLeftFlag=1
+    EndIf
+    If Mouse.IsRightButtonDown = "True" Then
+      Sound.PlayChime()
+      mouseRight="True"
+      mouseRightFlag=1
+    EndIf
+  EndIf
+EndSub
+
+Sub OnMouseUp
+  If Mouse.IsLeftButtonDown="False" Then
+    mouseLeft="False"
+  EndIf
+  If Mouse.IsRightButtonDown="False" Then
+    mouseRight="False"
+  EndIf
+EndSub
